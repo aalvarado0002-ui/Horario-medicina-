@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d6efd">
+<title>Horario Medicina</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:system-ui,sans-serif; }
+  body { background:#f0f4f8; padding:16px; padding-bottom:80px; }
+  h1 { color:#0d6efd; font-size:22px; margin-bottom:16px; text-align:center; }
+  .dia { background:#fff; border-radius:12px; margin-bottom:12px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,.08); }
+  .dia-titulo { background:#0d6efd; color:#fff; padding:10px 16px; font-weight:600; }
+  .clase { padding:12px 16px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }
+  .clase:last-child { border-bottom:none; }
+  .info { flex:1; }
+  .materia { font-weight:600; color:#222; }
+  .detalle { font-size:13px; color:#666; margin-top:2px; }
+  .hora { background:#e7f1ff; color:#0d6efd; padding:6px 10px; border-radius:8px; font-size:13px; font-weight:600; }
+  .btn-add { position:fixed; bottom:20px; right:20px; width:60px; height:60px; border-radius:50%; background:#0d6efd; color:#fff; border:none; font-size:32px; box-shadow:0 4px 12px rgba(13,110,253,.4); cursor:pointer; }
+  .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); align-items:center; justify-content:center; padding:20px; z-index:10; }
+  .modal.activo { display:flex; }
+  .modal-contenido { background:#fff; border-radius:16px; padding:20px; width:100%; max-width:400px; }
+  .modal-contenido h2 { margin-bottom:16px; color:#0d6efd; font-size:18px; }
+  .modal-contenido input, .modal-contenido select { width:100%; padding:10px; margin-bottom:10px; border:1px solid #ccc; border-radius:8px; font-size:14px; }
+  .modal-botones { display:flex; gap:10px; }
+  .modal-botones button { flex:1; padding:12px; border:none; border-radius:8px; font-weight:600; cursor:pointer; }
+  .btn-guardar { background:#0d6efd; color:#fff; }
+  .btn-cancelar { background:#eee; color:#333; }
+  .eliminar { background:#dc3545; color:#fff; border:none; padding:6px 10px; border-radius:6px; margin-left:8px; cursor:pointer; font-size:12px; }
+  .vacio { text-align:center; color:#999; padding:30px; }
+</style>
+</head>
+<body>
+
+<h1>🩺 Mi Horario de Medicina</h1>
+<div id="contenedor"></div>
+
+<button class="btn-add" onclick="abrirModal()">+</button>
+
+<div class="modal" id="modal">
+  <div class="modal-contenido">
+    <h2>Agregar clase</h2>
+    <select id="dia">
+      <option value="Lunes">Lunes</option>
+      <option value="Martes">Martes</option>
+      <option value="Miércoles">Miércoles</option>
+      <option value="Jueves">Jueves</option>
+      <option value="Viernes">Viernes</option>
+      <option value="Sábado">Sábado</option>
+    </select>
+    <input type="text" id="materia" placeholder="Materia (ej: Anatomía)">
+    <input type="text" id="aula" placeholder="Aula / Lugar (opcional)">
+    <input type="time" id="horaInicio">
+    <input type="time" id="horaFin">
+    <div class="modal-botones">
+      <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-guardar" onclick="guardar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DIAS = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+let clases = JSON.parse(localStorage.getItem("horarioMed") || "[]");
+
+function render() {
+  const cont = document.getElementById("contenedor");
+  cont.innerHTML = "";
+  if (clases.length === 0) {
+    cont.innerHTML = '<div class="vacio">No hay clases aún.<br>Toca + para agregar</div>';
+    return;
+  }
+  DIAS.forEach(dia => {
+    const delDia = clases.filter(c => c.dia === dia).sort((a,b)=>a.inicio.localeCompare(b.inicio));
+    if (delDia.length === 0) return;
+    const div = document.createElement("div");
+    div.className = "dia";
+    div.innerHTML = `<div class="dia-titulo">${dia}</div>`;
+    delDia.forEach(c => {
+      const fila = document.createElement("div");
+      fila.className = "clase";
+      fila.innerHTML = `
+        <div class="info">
+          <div class="materia">${c.materia}</div>
+          <div class="detalle">${c.aula || ""}</div>
+        </div>
+        <div class="hora">${c.inicio} - ${c.fin}</div>
+        <button class="eliminar" onclick="eliminar(${c.id})">✕</button>
+      `;
+      div.appendChild(fila);
+    });
+    cont.appendChild(div);
+  });
+}
+
+function abrirModal(){ document.getElementById("modal").classList.add("activo"); }
+function cerrarModal(){ document.getElementById("modal").classList.remove("activo"); }
+
+function guardar() {
+  const dia = document.getElementById("dia").value;
+  const materia = document.getElementById("materia").value.trim();
+  const aula = document.getElementById("aula").value.trim();
+  const inicio = document.getElementById("horaInicio").value;
+  const fin = document.getElementById("horaFin").value;
+  if (!materia || !inicio || !fin) { alert("Completa materia y horas"); return; }
+  clases.push({ id: Date.now(), dia, materia, aula, inicio, fin });
+  localStorage.setItem("horarioMed", JSON.stringify(clases));
+  document.getElementById("materia").value = "";
+  document.getElementById("aula").value = "";
+  cerrarModal();
+  render();
+}
+
+function eliminar(id) {
+  if (!confirm("¿Eliminar esta clase?")) return;
+  clases = clases.filter(c => c.id !== id);
+  localStorage.setItem("horarioMed", JSON.stringify(clases));
+  render();
+}
+
+render();
+</script>
+</body>
+</html><html>
+
+</html><html>
+
+</html>
